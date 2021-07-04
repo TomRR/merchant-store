@@ -34,10 +34,13 @@ namespace MerchantStoreApi
         {
             BsonSerializer.RegisterSerializer(new GuidSerializer(BsonType.String));
             BsonSerializer.RegisterSerializer(new DateTimeOffsetSerializer(BsonType.String));
+
+            var mongoDbSettingssettings = Configuration.GetSection(nameof(MongoDbSettings)).Get<MongoDbSettings>();
+
             services.AddSingleton<IMongoClient>(serviceProvider =>
             {
-                var settings = Configuration.GetSection(nameof(MongoDbSettings)).Get<MongoDbSettings>();
-                return new MongoClient(settings.ConnectionString);
+                
+                return new MongoClient(mongoDbSettingssettings.ConnectionString);
             });
             services.AddSingleton<IItemsRepository, MongoDbItemsRepository>();
             services.AddControllers(options =>
@@ -48,6 +51,12 @@ namespace MerchantStoreApi
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "MerchantStoreApi", Version = "v1" });
             });
+
+            // if the db can't be reached after 3 sec the health check fails
+            services.AddHealthChecks()
+                .AddMongoDb(mongoDbSettingssettings.ConnectionString, 
+                    name: "mongodb",
+                    timeout: TimeSpan.FromSeconds(3));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -69,6 +78,7 @@ namespace MerchantStoreApi
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                endpoints.MapHealthChecks("/health");
             });
         }
     }
