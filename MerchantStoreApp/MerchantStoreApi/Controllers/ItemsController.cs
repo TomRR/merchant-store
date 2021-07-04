@@ -22,17 +22,17 @@ namespace MerchantStoreApi.Controllers
 
         // GET / items
         [HttpGet]
-        public IEnumerable<ItemDto> GetItems()
+        public async Task<IEnumerable<ItemDto>> GetItemsAsync()
         {
-            var items = _repository.GetItems().Select( item => item.AsDto());
+            var items = (await _repository.GetItemsAsync()).Select( item => item.AsDto());
             return items;
         }
 
         // GET / items/{id}
         [HttpGet("{id}")]
-        public ActionResult<ItemDto> GetItem(Guid id)
+        public async Task<ActionResult<ItemDto>> GetItemAsync(Guid id)
         {
-            var item = _repository.GetItem(id);
+            var item = await _repository.GetItemAsync(id);
 
             if (item is null) return NotFound();
             
@@ -41,7 +41,7 @@ namespace MerchantStoreApi.Controllers
 
         // POST / items
         [HttpPost]
-        public ActionResult<ItemDto> CreateItem(CreateItemDto itemDto)
+        public async Task<ActionResult<ItemDto>> CreateItemAsync(CreateItemDto itemDto)
         {
             Item newItem = new()
             {
@@ -50,17 +50,17 @@ namespace MerchantStoreApi.Controllers
                 Price = itemDto.Price,
                 CreatedDate = DateTimeOffset.UtcNow
             };
-            _repository.CreateItem(newItem);
+            await _repository.CreateItemAsync(newItem);
             // Convention is to return the item you created and a header that specific where you can go ahead and get information about the created item
-            return CreatedAtAction(nameof(GetItem), new {id = newItem.Id}, newItem.AsDto());
+            return CreatedAtAction(nameof(GetItemAsync), new {id = newItem.Id}, newItem.AsDto());
         }
 
         // the convention for a put is to not return anything
         // PUT / items/{id}
         [HttpPut("{id}")]
-        public ActionResult UpdateItem(Guid id, UpdateItemDto itemDto)
+        public async Task<ActionResult> UpdateItemAsync(Guid id, UpdateItemDto itemDto)
         {
-            var existingItem = _repository.GetItem(id);
+            var existingItem = await _repository.GetItemAsync(id);
 
             if (existingItem is null) return NotFound();
 
@@ -70,18 +70,18 @@ namespace MerchantStoreApi.Controllers
                 Price = itemDto.Price
             };
 
-            _repository.UpdateItem(updatedItem);
+            await _repository.UpdateItemAsync(updatedItem);
             return NoContent();
         }
 
         // DELETE /items/{id}
         [HttpDelete("{id}")]
-        public ActionResult DeleteItem(Guid id)
+        public async Task<ActionResult> DeleteItem(Guid id)
         {
-            var existingItem = _repository.GetItem(id);
+            var existingItem = await _repository.GetItemAsync(id);
             if (existingItem is null) return NotFound();
 
-            _repository.DeleteItem(id);
+            await _repository.DeleteItemAsync(id);
             return NoContent();
         }
     }
