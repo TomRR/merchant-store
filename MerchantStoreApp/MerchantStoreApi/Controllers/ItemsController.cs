@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MerchantStoreApi.Dtos;
 using MerchantStoreApi.Entities;
 using MerchantStoreApi.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using ILogger = DnsClient.Internal.ILogger;
 
 namespace MerchantStoreApi.Controllers
 {
@@ -14,17 +15,29 @@ namespace MerchantStoreApi.Controllers
     public class ItemsController : ControllerBase
     {
         private readonly IItemsRepository _repository;
+        private readonly ILogger<ItemsController> _logger;
 
-        public ItemsController(IItemsRepository repository)
+        public ItemsController(IItemsRepository repository, ILogger<ItemsController> logger)
         {
             _repository = repository;
+            _logger = logger;
         }
 
         // GET / items
         [HttpGet]
-        public async Task<IEnumerable<ItemDto>> GetItemsAsync()
+        public async Task<IEnumerable<ItemDto>> GetItemsAsync(string nameFilter = null)
         {
-            var items = (await _repository.GetItemsAsync()).Select( item => item.AsDto());
+
+            var items = (await _repository.GetItemsAsync())
+                .Select(item => item.AsDto());
+
+            if (!string.IsNullOrWhiteSpace(nameFilter))
+            {
+                items = items.Where(item => item.Name.Contains(nameFilter, StringComparison.OrdinalIgnoreCase));
+            }
+
+            _logger.LogInformation($"{DateTime.UtcNow.ToString("hh:mm:ss")}: Retrieved {items.Count()} items");
+
             return items;
         }
 
@@ -36,7 +49,8 @@ namespace MerchantStoreApi.Controllers
 
             if (item is null) return NotFound();
             
-            return Ok(item.AsDto());
+            //return Ok(item.AsDto());
+            return item.AsDto();
         }
 
         // POST / items
@@ -47,6 +61,7 @@ namespace MerchantStoreApi.Controllers
             {
                 Id = Guid.NewGuid(),
                 Name = itemDto.Name,
+                Description = itemDto.Description,
                 Price = itemDto.Price,
                 CreatedDate = DateTimeOffset.UtcNow
             };
@@ -64,13 +79,10 @@ namespace MerchantStoreApi.Controllers
 
             if (existingItem is null) return NotFound();
 
-            Item updatedItem = existingItem with
-            {
-                Name = itemDto.Name,
-                Price = itemDto.Price
-            };
+            existingItem.Name = itemDto.Name;
+            existingItem.Price = itemDto.Price;
 
-            await _repository.UpdateItemAsync(updatedItem);
+            await _repository.UpdateItemAsync(existingItem);
             return NoContent();
         }
 
