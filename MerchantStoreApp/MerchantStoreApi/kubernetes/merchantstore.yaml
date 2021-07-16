@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: merchant-store-deployment
+spec:
+# which pods to manage
+  selector:
+    matchLabels:
+      app: merchantstore
+  template:
+    metadata:
+      labels:
+        app: merchantstore
+    spec:
+      containers:
+      - name: merchantstore
+        image: tomrr/merchantstore:v1
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+        env: 
+          - name: MongoDbSettings__HOST
+            value: mongodb-service
+          - name: MongoDbSettings__Password
+            valueFrom:
+              secretKeyRef:
+                name: merchantstore-secrets
+                key: mongodb-password
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 80
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: merchantstore-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: merchantstore
+  ports:
+  - port: 80 # outside port
+    targetPort: 80 # Port from the container
